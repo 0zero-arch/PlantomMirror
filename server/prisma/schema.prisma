@@ -1,0 +1,249 @@
+// PhantomMirror 数据模型（唯一事实来源）
+//
+// 对齐《server-architecture.md》§6。设计取舍见该文档 ADR-202。
+//
+// 注意：appearance_profiles 的字段是「第三方 AI 的输出」，不代表绝对真实的人体属性
+// （架构文档 §6 明确要求）。因此这些字段一律用 String 而非 enum —— 供应商换了、
+// 枚举值变了，不需要改数据库；同时 raw 保留供应商原始响应备查。
+
+generator client {
+  provider     = "prisma-client"
+  output       = "../src/generated/prisma"
+  moduleFormat = "esm"
+}
+
+// Prisma 7 起 datasource 不再写 url，连接串由 prisma7.config.ts 注入。
+datasource db {
+  provider = "postgresql"
+}
+
+// ---------------------------------------------------------------- 用户
+
+/// Phase 1 只有匿名用户：客户端在请求头带 X-Anonymous-Id，后端据此 upsert。
+/// 不做注册登录，但表结构预留避免以后大改。
+model User {
+  id          String   @id @default(uuid()) @db.Uuid
+  anonymousId String   @unique @map("anonymous_id")
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt   DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  photos      Photo[]
+  simulations Simulation[]
+  feedbacks   Feedback[]
+
+  @@map("users")
+}
+
+// ---------------------------------------------------------------- 照片
+
+enum PhotoType {
+  SELFIE
+  OTHER
+
+  @@map("photo_type")
+}
+
+enum PhotoStatus {
+  /// 已签发上传地址，但字节还没到对象存储
+  PENDING
+  /// 客户端已调用 complete，字节确认落盘
+  READY
+  FAILED
+
+  @@map("photo_status")
+}
+
+/// 图片字节存在 MinIO，这里只存元数据。
+model Photo {
+  id          String      @id @default(uuid()) @db.Uuid
+  userId      String      @map("user_id") @db.Uuid
+  storageKey  String      @unique @map("storage_key")
+  type        PhotoType   @default(SELFIE)
+  status      PhotoStatus @default(PENDING)
+  mimeType    String?     @map("mime_type")
+  sizeBytes   Int?        @map("size_bytes")
+  width       Int?
+  height      Int?
+  createdAt   DateTime    @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt   DateTime    @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  user              User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  appearanceProfile AppearanceProfile?
+  simulations       Simulation[]
+
+  @@index([userId, createdAt])
+  @@map("photos")
+}
+
+// ---------------------------------------------------------------- 外貌画像
+
+/// 一张照片对应一份画像。字段值来自第三方 AI，措辞需谨慎（架构文档 §6）。
+model AppearanceProfile {
+  id             String   @id @default(uuid()) @db.Uuid
+  photoId        String   @unique @map("photo_id") @db.Uuid
+  faceShape      String?  @map("face_shape")
+  hairType       String?  @map("hair_type")
+  hairLength     String?  @map("hair_length")
+  hairDensity    String?  @map("hair_density")
+  hairFrizziness String?  @map("hair_frizziness")
+  /// 供应商原始输出，保留以备将来字段不够时回溯
+  raw            Json?
+  provider       String?
+  createdAt      DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  photo       Photo        @relation(fields: [photoId], references: [id], onDelete: Cascade)
+  simulations Simulation[]
+
+  @@map("appearance_profiles")
+}
+
+// ---------------------------------------------------------------- 发型目录
+
+enum Gender {
+  MALE
+  FEMALE
+  UNISEX
+
+  @@map("gender")
+}
+
+model Hairstyle {
+  id              String   @id @default(uuid()) @db.Uuid
+  /// 人可读的稳定标识，便于种子数据与前端引用
+  code            String   @unique
+  name            String
+  category        String?
+  gender          Gender   @default(UNISEX)
+  length          String?
+  texture         String?
+  /// 供应商侧的发型 ID，切换 Provider 时用来映射
+  providerStyleId String?  @map("provider_style_id")
+  /// 参考图在对象存储里的 key
+  referenceImage  String?  @map("reference_image")
+  active          Boolean  @default(true)
+  sortOrder       Int      @default(0) @map("sort_order")
+  createdAt       DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  simulations Simulation[]
+
+  @@index([active, sortOrder])
+  @@map("hairstyles")
+}
+
+// ---------------------------------------------------------------- AI 任务状态机
+
+enum AiTaskType {
+  ANALYSIS
+  SIMULATION
+
+  @@map("ai_task_type")
+}
+
+/// 与客户端 TaskStatus 一一对应，见架构文档 §7。
+enum AiTaskStatus {
+  CREATED
+  QUEUED
+  PROCESSING
+  SUCCESS
+  FAILED
+  CANCELLED
+
+  @@map("ai_task_status")
+}
+
+/// 所有异步 AI 任务的统一表。状态机是唯一事实来源，业务表不重复存状态。
+model AiTask {
+  id         String       @id @default(uuid()) @db.Uuid
+  type       AiTaskType
+  status     AiTaskStatus @default(CREATED)
+  provider   String?
+  /// 失败原因，成功时为 null
+  error      String?
+  /// 累计尝试次数，供重试策略判断
+  attempts   Int          @default(0)
+  /// 入参快照，便于复现问题
+  payload    Json?
+  /// 供应商原始响应或结果元数据
+  result     Json?
+  createdAt  DateTime     @default(now()) @map("created_at") @db.Timestamptz(3)
+  startedAt  DateTime?    @map("started_at") @db.Timestamptz(3)
+  finishedAt DateTime?    @map("finished_at") @db.Timestamptz(3)
+
+  simulation Simulation?
+
+  @@index([status, createdAt])
+  @@map("ai_tasks")
+}
+
+// ---------------------------------------------------------------- 模拟（核心业务）
+
+model Simulation {
+  id                  String    @id @default(uuid()) @db.Uuid
+  userId              String    @map("user_id") @db.Uuid
+  photoId             String    @map("photo_id") @db.Uuid
+  appearanceProfileId String?   @map("appearance_profile_id") @db.Uuid
+  hairstyleId         String    @map("hairstyle_id") @db.Uuid
+  aiTaskId            String    @unique @map("ai_task_id") @db.Uuid
+  /// 结果图在对象存储里的 key
+  outputStorageKey    String?   @map("output_storage_key")
+  createdAt           DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  completedAt         DateTime? @map("completed_at") @db.Timestamptz(3)
+
+  user              User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  photo             Photo              @relation(fields: [photoId], references: [id], onDelete: Cascade)
+  appearanceProfile AppearanceProfile? @relation(fields: [appearanceProfileId], references: [id], onDelete: SetNull)
+  hairstyle         Hairstyle          @relation(fields: [hairstyleId], references: [id])
+  aiTask            AiTask             @relation(fields: [aiTaskId], references: [id], onDelete: Cascade)
+  feedbacks         Feedback[]
+
+  @@index([userId, createdAt])
+  @@map("simulations")
+}
+
+// ---------------------------------------------------------------- 反馈
+
+enum FeedbackReason {
+  UNNATURAL
+  WRONG_HAIRSTYLE
+  NOT_LIKE_FACE
+  TOO_SLOW
+  OTHER
+
+  @@map("feedback_reason")
+}
+
+model Feedback {
+  id           String          @id @default(uuid()) @db.Uuid
+  simulationId String          @map("simulation_id") @db.Uuid
+  userId       String          @map("user_id") @db.Uuid
+  /// 1-5；用 Int 而非 enum，便于将来改成五星以外的形式
+  rating       Int?
+  reason       FeedbackReason?
+  comment      String?
+  createdAt    DateTime        @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  simulation Simulation @relation(fields: [simulationId], references: [id], onDelete: Cascade)
+  user       User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([simulationId])
+  @@map("feedbacks")
+}
+
+// ---------------------------------------------------------------- 成本监控
+
+/// 架构文档 §6 / §56：AI 成本必须可观测，否则 BUY→BUILD 的决策没有依据。
+model AiUsage {
+  id            String       @id @default(uuid()) @db.Uuid
+  provider      String
+  model         String?
+  taskType      AiTaskType   @map("task_type")
+  inputSize     Int?         @map("input_size")
+  outputSize    Int?         @map("output_size")
+  latencyMs     Int?         @map("latency_ms")
+  estimatedCost Decimal?     @map("estimated_cost") @db.Decimal(12, 6)
+  success       Boolean      @default(true)
+  createdAt     DateTime     @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  @@index([provider, createdAt])
+  @@map("ai_usages")
+}

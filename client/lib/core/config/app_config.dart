@@ -2,8 +2,15 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 /// 应用配置。通过 `--dart-define` 注入，缺省回落到开发默认值。
 ///
+/// ⚠️ `baseUrl` **必须带 API 前缀 `/api/v1`**，因为 `ApiEndpoints` 里存的是
+/// 相对路径（`/photos/upload-url`）。服务端 NestJS 上挂了全局前缀，
+/// 少了这一段所有请求都会 404。
+///
+/// Dio 是把 baseUrl 和 path 当字符串直接拼接的（不是 URI resolve），
+/// 所以 baseUrl 结尾**不要**再带 `/`，否则会拼出 `//photos`。
+///
 /// 示例：
-/// `flutter run --dart-define=API_BASE_URL=http://192.168.1.10:3000 --dart-define=APP_ENV=dev`
+/// `flutter run --dart-define=API_BASE_URL=http://192.168.1.10:3000/api/v1 --dart-define=APP_ENV=dev`
 class AppConfig {
   const AppConfig({
     required this.baseUrl,
@@ -21,7 +28,8 @@ class AppConfig {
     const baseUrl = String.fromEnvironment(
       'API_BASE_URL',
       // Android 模拟器访问宿主机用 10.0.2.2；真机调试请改为开发机局域网 IP。
-      defaultValue: 'http://10.0.2.2:3000',
+      // 结尾的 /api/v1 不能省，原因见类注释。
+      defaultValue: 'http://10.0.2.2:3000/api/v1',
     );
     return AppConfig(
       baseUrl: baseUrl,

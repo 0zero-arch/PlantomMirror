@@ -1,0 +1,73 @@
+# PhantomMirror 存储层（Phase 1）
+#
+# 部署目标：自有云服务器（101.35.163.174）
+# 该服务器上已有原生 PostgreSQL 14 / Redis 6 在跑，且 5432 / 6379 端口被占用，
+# 因此本栈刻意使用备用端口（5433 / 6380 / 9000）并绑定 127.0.0.1，
+# 与服务器上已有服务完全隔离，可随时 `docker compose down` 干净拆除。
+#
+# 默认只绑本机：本地开发时通过 SSH 隧道访问（见 README / 架构文档）。
+# 若将来需要对外提供服务，改 .env 里的 *_BIND 并在云厂商安全组放行对应端口。
+
+name: phantommirror
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: pm-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-phantommirror}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD 未设置，请先复制 .env.example 为 .env}
+      POSTGRES_DB: ${POSTGRES_DB:-phantommirror}
+    ports:
+      - "${POSTGRES_BIND:-127.0.0.1}:${POSTGRES_PORT:-5433}:5432"
+    volumes:
+      - pm-postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-phantommirror} -d ${POSTGRES_DB:-phantommirror}"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+    container_name: pm-redis
+    restart: unless-stopped
+    # appendonly 打开：BullMQ 的任务状态不能因为重启就丢
+    command:
+      - redis-server
+      - --requirepass
+      - ${REDIS_PASSWORD:?REDIS_PASSWORD 未设置，请先复制 .env.example 为 .env}
+      - --appendonly
+      - "yes"
+    ports:
+      - "${REDIS_BIND:-127.0.0.1}:${REDIS_PORT:-6380}:6379"
+    volumes:
+      - pm-redis-data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "--no-auth-warning", "-a", "${REDIS_PASSWORD}", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  minio:
+    image: minio/minio:latest
+    container_name: pm-minio
+    restart: unless-stopped
+    command: ["server", "/data", "--console-address", ":9001"]
+    environment:
+      # MinIO 要求 root 密码至少 8 位，且不能等于用户名
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:?MINIO_ROOT_USER 未设置，请先复制 .env.example 为 .env}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:?MINIO_ROOT_PASSWORD 未设置，请先复制 .env.example 为 .env}
+    ports:
+      # 9000 是 S3 API（客户端直传 / 预签名 URL 走这里）
+      - "${MINIO_BIND:-127.0.0.1}:${MINIO_PORT:-9000}:9000"
+      # 9001 是 Web 控制台，始终只绑本机，靠 SSH 隧道访问
+      - "127.0.0.1:${MINIO_CONSOLE_PORT:-9001}:9001"
+    volumes:
+      - pm-minio-data:/data
+
+volumes:
+  pm-postgres-data:
+  pm-redis-data:
+  pm-minio-data:

@@ -1,4 +1,7 @@
 /// 接口路径常量（后端 REST）。
+///
+/// 这里存的是**相对路径**，前缀 `/api/v1` 由 `AppConfig.baseUrl` 提供
+/// （见 `core/config/app_config.dart` 的类注释）。
 class ApiEndpoints {
   ApiEndpoints._();
 
