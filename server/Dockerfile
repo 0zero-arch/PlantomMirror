@@ -41,6 +41,11 @@ RUN if [ -n "$APT_MIRROR" ]; then \
 # 先只拷 manifest：依赖没变时这层可以复用，改代码不必重装依赖
 COPY package.json package-lock.json ./
 
+# schema 与 Prisma 配置必须赶在 npm ci 之前就位 —— postinstall 会跑
+# `prisma generate`，缺了它直接报 "prisma/schema.prisma: file not found"
+COPY prisma ./prisma
+COPY prisma7.config.ts ./
+
 # 占位值，仅为让 prisma generate 跑得过去（见文件头注释）
 ENV DATABASE_URL="postgresql://placeholder:placeholder@localhost:5432/placeholder?schema=public"
 
