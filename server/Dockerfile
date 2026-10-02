@@ -25,7 +25,12 @@ COPY package.json package-lock.json ./
 
 # 占位值，仅为让 prisma generate 跑得过去（见文件头注释）
 ENV DATABASE_URL="postgresql://placeholder:placeholder@localhost:5432/placeholder?schema=public"
-RUN npm ci
+
+# npm 源。默认官方源；国内构建时传 --build-arg NPM_REGISTRY=https://registry.npmmirror.com
+# （实测服务器上 npmmirror 0.33s vs 官方 2.8s，装依赖差距很大）
+ARG NPM_REGISTRY=https://registry.npmjs.org
+RUN npm config set registry "$NPM_REGISTRY" \
+ && npm ci
 
 COPY . .
 

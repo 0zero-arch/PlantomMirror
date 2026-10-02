@@ -81,6 +81,9 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
+      args:
+        # 国内构建时在 .env 里设 NPM_REGISTRY=https://registry.npmmirror.com
+        NPM_REGISTRY: ${NPM_REGISTRY:-https://registry.npmjs.org}
     container_name: pm-app
     restart: unless-stopped
     env_file: .env
