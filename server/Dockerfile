@@ -16,7 +16,15 @@ FROM node:22-bookworm-slim AS build
 WORKDIR /app
 
 # Prisma CLI 需要 openssl 才能正确探测运行环境
-RUN apt-get update \
+#
+# apt 源可换：默认走官方 deb.debian.org，国内构建时传
+# --build-arg APT_MIRROR=mirrors.tencentyun.com
+# （实测官方源下 8.7MB 的包索引直接卡死，腾讯云内网镜像 0.17s）
+ARG APT_MIRROR=
+RUN if [ -n "$APT_MIRROR" ]; then \
+      sed -i "s|deb.debian.org|$APT_MIRROR|g" /etc/apt/sources.list.d/debian.sources; \
+    fi \
+ && apt-get update \
  && apt-get install -y --no-install-recommends openssl ca-certificates \
  && rm -rf /var/lib/apt/lists/*
 
