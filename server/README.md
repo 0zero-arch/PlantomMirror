@@ -74,6 +74,15 @@ npm run start:dev
 curl http://127.0.0.1:3000/api/v1/health
 ```
 
+跑完整业务闭环（取上传地址 → 直传 MinIO → 分析 → 试戴 → 下载结果图 → 反馈）：
+
+```bash
+python server/scripts/smoke.py
+```
+
+这是个**打真实 HTTP 服务**的黑盒冒烟脚本，需要 API 已启动 + 隧道通畅。
+`npm run test:e2e` 只在进程内覆盖健康检查，业务路由由这个脚本兜底。
+
 ---
 
 ## API 一览
