@@ -11,7 +11,17 @@
 # ────────────────────────────────────────────────────────────────
 
 # ---------- 构建 ----------
-FROM node:22-bookworm-slim AS build
+#
+# 用 node:24 而不是 22，是因为**它自带 npm 11**：
+#   node:22 → npm 10.9.9，node:24 → npm 11.19.0
+# 本仓库的 package-lock.json 由 npm 11 生成，npm 10 做 `npm ci` 时会
+# 在 peer 依赖上得出不同的树，直接报
+#   `npm ci` can only install packages when your package.json and
+#   package-lock.json are in sync ... Missing: typescript@5.9.3
+# （根因是 vite-tsconfig-paths 间接依赖的 tsconfck 声明了 peer
+#   typescript@^5.0.0，npm 10 想在嵌套里补一个 5.x，npm 11 不补。）
+# 换回 node:22 就会复现，别改。
+FROM node:24-bookworm-slim AS build
 
 WORKDIR /app
 
