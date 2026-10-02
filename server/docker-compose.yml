@@ -1,4 +1,4 @@
-# PhantomMirror 存储层（Phase 1）
+# PhantomMirror 全栈（Phase 1）：存储层 + API
 #
 # 部署目标：自有云服务器（101.35.163.174）
 # 该服务器上已有原生 PostgreSQL 14 / Redis 6 在跑，且 5432 / 6379 端口被占用，
@@ -7,6 +7,16 @@
 #
 # 默认只绑本机：本地开发时通过 SSH 隧道访问（见 README / 架构文档）。
 # 若将来需要对外提供服务，改 .env 里的 *_BIND 并在云厂商安全组放行对应端口。
+#
+# ── 两种用法 ────────────────────────────────────────────────────
+#   服务器部署：`docker compose up -d --build`（含 app 服务）
+#   本地开发  ：不起 app（开发机没装 docker），本机 `npm run start` 走 SSH 隧道
+#              连上面几个容器；容器端口都只绑 127.0.0.1，隧道即全部通路。
+#
+# app 服务 environment 段覆盖的那几项，是因为**容器之间走 compose 网络**：
+# 用服务名当主机名、容器内端口（5432/6379/9000），而不是宿主映射出去的那些。
+# 不覆盖的话，.env 里给本机隧道用的 127.0.0.1:5433 在容器里根本连不通。
+# ────────────────────────────────────────────────────────────────
 
 name: phantommirror
 
@@ -66,6 +76,32 @@ services:
       - "127.0.0.1:${MINIO_CONSOLE_PORT:-9001}:9001"
     volumes:
       - pm-minio-data:/data
+
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: pm-app
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      # ↓ 覆盖 .env 里给本机隧道用的连接串，改成 compose 网络内的地址
+      DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}?schema=public
+      REDIS_HOST: redis
+      REDIS_PORT: "6379"
+      S3_ENDPOINT: http://minio:9000
+      # 注意：S3_PUBLIC_ENDPOINT 故意**不覆盖** —— 它必须保持 .env 里
+      # 那个「手机能访问到的地址」（公网 IP:9000），签名要绑在它上面。
+    ports:
+      # 手机要直连 API，这里不能只绑 127.0.0.1
+      - "${APP_BIND:-0.0.0.0}:3000:3000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      minio:
+        condition: service_started
 
 volumes:
   pm-postgres-data:

@@ -147,15 +147,41 @@ npm run prisma:studio    # 数据库可视化
 
 ## 部署（服务器侧）
 
+API 与存储层跑在同一套 compose 里。服务器上先克隆仓库（不要手抄文件，
+否则 `git pull` 更新不了）：
+
 ```bash
 ssh ubuntu@101.35.163.174
-cd ~/phantommirror
-docker compose up -d
-docker compose ps
+git clone https://github.com/0zero-arch/PlantomMirror.git ~/PlantomMirror
+cd ~/PlantomMirror/server
+cp .env.example .env    # 填真实密码，并按 .env.example 末尾「服务器部署」改三处
 ```
 
-存储层容器（Postgres/Redis/MinIO）与服务器上已有服务完全隔离，可随时
-`docker compose down` 干净拆除。
+然后起服务并跑一次迁移：
+
+```bash
+docker compose up -d --build
+docker compose ps
+docker compose exec app npx prisma migrate deploy   # 建表
+docker compose exec app npx prisma db seed          # 发型目录（幂等）
+```
+
+自检：
+
+```bash
+curl http://127.0.0.1:3000/api/v1/health
+python3 scripts/smoke.py    # 需把 BASE 改成 http://101.35.163.174:3000/api/v1
+```
+
+前置条件：腾讯云安全组放行 **3000**（API）与 **9000**（手机直传对象存储）。
+5433 / 6380 / 9001 **不要**放行，它们只给 SSH 隧道用。
+
+存储层与服务器上已有服务完全隔离，可随时 `docker compose down` 干净拆除
+（数据在具名 volume 里，`down` 不会删）。
+
+> ⚠️ 9000 对公网开放 = MinIO 直接暴露在互联网上。当前镜像构建于 12 个月前
+> 且官方已停发社区版，不再有安全更新 —— 见下面「镜像从哪来」。联调期短期
+> 使用可以，长期上线前必须换掉。
 
 ### 镜像从哪来（国内拉取的坑）
 
