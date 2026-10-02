@@ -1,5 +1,17 @@
 allprojects {
+    // 插件子工程（如 flutter_plugin_android_lifecycle）的 buildscript 仓库
+    // 不走 settings 的 pluginManagement，这里统一补上阿里云镜像，避免直连 dl.google.com。
+    buildscript {
+        repositories {
+            maven { url = uri("https://maven.aliyun.com/repository/google") }
+            maven { url = uri("https://maven.aliyun.com/repository/central") }
+            google()
+            mavenCentral()
+        }
+    }
     repositories {
+        maven { url = uri("https://maven.aliyun.com/repository/google") }
+        maven { url = uri("https://maven.aliyun.com/repository/central") }
         google()
         mavenCentral()
     }
