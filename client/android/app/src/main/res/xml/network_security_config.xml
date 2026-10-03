@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  真机联调用的明文流量白名单。
+
+  Android 9 (API 28) 起默认禁止明文 HTTP，而我们的开发服务器
+  （API :3000 / MinIO :9000）跑的是 http 不是 https。不加这个配置，
+  请求会被系统直接掐断，且报错长得像「网络不可达」，很难往这里想。
+
+  这里刻意只放行开发服务器的 IP，而不是全局開 usesCleartextTraffic="true"：
+  全局放开会在以后接生产域名时悄悄留着一个明文口子。
+
+  以后要打局域网里的开发机（例如 192.168.1.10），在下面照抄一行即可。
+  API 与 MinIO 在同一台机器上，所以一条 IP 就同时覆盖了「调接口」和
+  「直传对象存储」两条路。
+-->
+<network-security-config>
+    <domain-config cleartextTrafficPermitted="true">
+        <domain includeSubdomains="false">101.35.163.174</domain>
+    </domain-config>
+</network-security-config>

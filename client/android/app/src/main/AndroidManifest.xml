@@ -1,8 +1,13 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- Flutter 模板只在 debug/profile 变体里声明 INTERNET，release 包没有它，
+         联网会全部失败。必须放在 main 里。 -->
+    <uses-permission android:name="android.permission.INTERNET"/>
+
     <application
         android:label="phantom_mirror"
         android:name="${applicationName}"
-        android:icon="@mipmap/ic_launcher">
+        android:icon="@mipmap/ic_launcher"
+        android:networkSecurityConfig="@xml/network_security_config">
         <activity
             android:name=".MainActivity"
             android:exported="true"
