@@ -24,6 +24,10 @@ coverage/
 npm-debug.log*
 logs/
 
+# Python 字节码（scripts/ 下的运维脚本用）
+__pycache__/
+*.py[cod]
+
 # 编辑器 / 系统
 .vscode/*
 !.vscode/extensions.json

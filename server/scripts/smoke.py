@@ -9,18 +9,26 @@
 
 前置：SSH 隧道已建立 + 存储层容器在跑 + API 已启动（见 README）。
 用法：
-  python server/scripts/smoke.py
+  python server/scripts/smoke.py                       # 打本机
+  PM_BASE=http://101.35.163.174:3000/api/v1 \
+    python server/scripts/smoke.py                     # 打公网部署（真机同一条路）
+
+打公网时，脚本里 [2] 直传走的是服务端签发的预签名 URL —— 它的 Host 来自
+S3_PUBLIC_ENDPOINT。若那一步连不上，说明该变量还指着内网地址（如 minio:9000），
+而不是公网 IP。
 """
 import json
+import os
 import secrets
 import struct
 import sys
 import time
 import urllib.error
+import urllib.parse
 import urllib.request
 import zlib
 
-BASE = "http://127.0.0.1:3000/api/v1"
+BASE = os.environ.get("PM_BASE", "http://127.0.0.1:3000/api/v1")
 ANON_ID = "anon_" + secrets.token_hex(16)
 
 
@@ -51,6 +59,10 @@ def call(method, path, body=None, headers=None, raw=False, timeout=60):
             return e.code, json.loads(payload)
         except Exception:
             return e.code, payload
+    except urllib.error.URLError as e:
+        # 连不上（超时 / 端口没放行 / DNS 不通）—— 返回 0 让调用方给出人话提示，
+        # 而不是甩一个 traceback 出来。
+        return 0, f"连接失败: {e.reason}"
 
 
 def make_png(width=8, height=8, rgb=(90, 140, 200)):
@@ -102,8 +114,10 @@ def main():
         "POST", "/photos/upload-url",
         {"contentType": "image/png", "sizeBytes": len(png), "width": 8, "height": 8},
     )
-    if status >= 400:
+    if status == 0 or status >= 400:
         print(f"  失败 {status}: {body}")
+        if status == 0:
+            print(f"      API {BASE} 连不上。")
         return 1
     photo_id = body["photoId"]
     upload_url = body["uploadUrl"]
@@ -111,11 +125,17 @@ def main():
     print(f"  uploadUrl={upload_url[:90]}...")
 
     # ---- 2. 直传对象存储 ----
-    print("[2] 直传图片到 MinIO（不经过后端）")
+    host = urllib.parse.urlsplit(upload_url).netloc
+    print(f"[2] 直传图片到 MinIO: {host}（不经过后端）")
+    if "minio:" in host or host.startswith("127.0.0.1"):
+        print(f"  [!] 预签名 URL 指向内网地址 {host} —— 外网客户端用不了。")
+        print("      服务器上 .env 的 S3_PUBLIC_ENDPOINT 要设成公网地址。")
     status, body = call("PUT", upload_url, png, {"Content-Type": "image/png"}, raw=True)
     print(f"  HTTP {status}")
-    if status >= 400:
+    if status >= 400 or status == 0:
         print(f"  失败: {body}")
+        if status == 0:
+            print("      若是公网地址：确认腾讯云安全组已放行 TCP:9000，且 MINIO_BIND=0.0.0.0。")
         return 1
 
     # ---- 3. 上报完成 ----
