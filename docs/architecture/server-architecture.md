@@ -208,16 +208,21 @@ CREATED ──→ QUEUED ──→ PROCESSING ──→ SUCCESS
 
 对齐上版文档 §21，全部挂在 `/api/v1` 前缀下（便于将来版本共存）。
 
+> ⚠️ **wire 字段是 camelCase**（`photoId` / `uploadUrl` / `taskId` / `simulationId` /
+> `outputImageUrl`）。数据库列名才是 snake_case，两者不要混。
+> 早期版本文档这里写的是 snake_case，已按实际实现修正 —— 客户端曾照旧文档写，
+> 结果每个字段都对不上、每个功能页都连不上。
+
 | 方法 | 路径 | 说明 |
 |---|---|---|
 | `GET` | `/api/v1/health` | 健康检查（本轮即可验证） |
-| `POST` | `/api/v1/photos/upload-url` | 取 Presigned 上传地址 → `{ photo_id, upload_url }` |
+| `POST` | `/api/v1/photos/upload-url` | 取 Presigned 上传地址 → `{ photoId, uploadUrl }` |
 | `POST` | `/api/v1/photos/{id}/complete` | 通知上传完成 |
-| `POST` | `/api/v1/analysis` | 创建分析任务 → `{ task_id, status }` |
-| `GET` | `/api/v1/analysis/{task_id}` | 查询分析状态 → `{ status, profile? }` |
+| `POST` | `/api/v1/analysis` | 创建分析任务 → `{ taskId, status }` |
+| `GET` | `/api/v1/analysis/{taskId}` | 查询分析状态 → `{ status, profile? }` |
 | `GET` | `/api/v1/hairstyles` | 发型列表 |
-| `POST` | `/api/v1/simulations` | 创建模拟任务 → `{ simulation_id, status }` |
-| `GET` | `/api/v1/simulations/{id}` | 查询模拟状态 → `{ status, output_image? }` |
+| `POST` | `/api/v1/simulations` | 创建模拟任务 → `{ simulationId, status }` |
+| `GET` | `/api/v1/simulations/{id}` | 查询模拟状态 → `{ status, outputImageUrl? }` |
 | `POST` | `/api/v1/feedback` | 提交反馈 |
 
 ### 统一错误结构（与客户端 `ApiException` 对齐）
