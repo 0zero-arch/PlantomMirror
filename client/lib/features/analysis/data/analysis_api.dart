@@ -20,13 +20,13 @@ class AnalysisApi {
 
   final Dio _dio;
 
-  /// 创建分析任务，返回 task_id。
+  /// 创建分析任务，返回 taskId。
   Future<String> create({required String photoId}) async {
     final res = await _dio.post<Map<String, dynamic>>(
       ApiEndpoints.analysis,
-      data: {'photo_id': photoId},
+      data: {'photoId': photoId},
     );
-    return res.data!['task_id'] as String;
+    return res.data!['taskId'] as String;
   }
 
   Future<AnalysisTaskResult> getTask(String taskId) async {

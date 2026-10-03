@@ -29,7 +29,8 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       ),
       GoRoute(
         path: '/hairstyle',
-        builder: (context, state) => const HairstyleListPage(),
+        builder: (context, state) =>
+            HairstyleListPage(photoId: state.uri.queryParameters['photoId']),
       ),
       GoRoute(
         path: '/simulation/:hairstyleId',

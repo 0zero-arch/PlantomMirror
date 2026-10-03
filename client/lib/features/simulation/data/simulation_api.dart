@@ -12,16 +12,16 @@ class SimulationApi {
 
   final Dio _dio;
 
-  /// 创建模拟任务，返回 simulation_id。
+  /// 创建模拟任务，返回 simulationId。
   Future<String> create({
     required String photoId,
     required String hairstyleId,
   }) async {
     final res = await _dio.post<Map<String, dynamic>>(
       ApiEndpoints.simulations,
-      data: {'photo_id': photoId, 'hairstyle_id': hairstyleId},
+      data: {'photoId': photoId, 'hairstyleId': hairstyleId},
     );
-    return res.data!['simulation_id'] as String;
+    return res.data!['simulationId'] as String;
   }
 
   Future<Simulation> get(String simulationId) async {

@@ -17,10 +17,23 @@ class FeedbackPage extends ConsumerStatefulWidget {
 
 class _FeedbackPageState extends ConsumerState<FeedbackPage> {
   int _rating = 5;
-  final List<String> _reasons = [];
+
+  /// 单选 —— 服务端 `reason` 是单个枚举，不是数组。
+  String? _reason;
+
   final TextEditingController _commentController = TextEditingController();
 
-  static const _reasonOptions = ['效果自然', '符合预期', '想换别的', '效果不佳', '其他'];
+  /// 展示文案 → 服务端 `FeedbackReason` 枚举值。
+  ///
+  /// ⚠️ 服务端的枚举**只有负面原因**（DTO 里写的是「不满意的原因」），
+  /// 所以这里只能给负面选项。满意度本身由 rating 表达。
+  static const _reasonOptions = <String, String>{
+    '效果不自然': 'UNNATURAL',
+    '不是想要的发型': 'WRONG_HAIRSTYLE',
+    '和脸型不搭': 'NOT_LIKE_FACE',
+    '生成太慢': 'TOO_SLOW',
+    '其他': 'OTHER',
+  };
 
   @override
   void dispose() {
@@ -32,7 +45,7 @@ class _FeedbackPageState extends ConsumerState<FeedbackPage> {
     final feedback = AppFeedback(
       simulationId: widget.simulationId,
       rating: _rating,
-      reason: _reasons.isEmpty ? null : _reasons.join(','),
+      reason: _reason,
       comment: _commentController.text.trim().isEmpty
           ? null
           : _commentController.text.trim(),
@@ -72,18 +85,12 @@ class _FeedbackPageState extends ConsumerState<FeedbackPage> {
           Wrap(
             spacing: 8,
             runSpacing: 8,
-            children: _reasonOptions.map((r) {
-              final selected = _reasons.contains(r);
-              return FilterChip(
-                label: Text(r),
-                selected: selected,
-                onSelected: (v) => setState(() {
-                  if (v) {
-                    _reasons.add(r);
-                  } else {
-                    _reasons.remove(r);
-                  }
-                }),
+            children: _reasonOptions.entries.map((e) {
+              return ChoiceChip(
+                label: Text(e.key),
+                selected: _reason == e.value,
+                onSelected: (v) =>
+                    setState(() => _reason = v ? e.value : null),
               );
             }).toList(),
           ),

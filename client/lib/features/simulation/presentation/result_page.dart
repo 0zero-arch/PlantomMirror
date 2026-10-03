@@ -24,8 +24,8 @@ class ResultPage extends ConsumerWidget {
             Expanded(
               child: BeforeAfterSlider(
                 before: _placeholder('原图'),
-                after: sim?.outputImage != null
-                    ? Image.network(sim!.outputImage!, fit: BoxFit.cover)
+                after: sim?.outputImageUrl != null
+                    ? Image.network(sim!.outputImageUrl!, fit: BoxFit.cover)
                     : _placeholder('效果图'),
               ),
             ),

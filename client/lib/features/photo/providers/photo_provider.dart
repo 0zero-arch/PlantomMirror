@@ -25,7 +25,6 @@ class PhotoNotifier extends Notifier<PhotoUploadState> {
   /// 上传照片：获取 Presigned URL → 直传（带进度）→ 通知完成。
   Future<void> upload({
     required Uint8List bytes,
-    required String fileName,
     required String contentType,
   }) async {
     state = const PhotoUploadState(status: UploadStatus.uploading);
@@ -33,7 +32,6 @@ class PhotoNotifier extends Notifier<PhotoUploadState> {
       final api = ref.read(photoApiProvider);
       final photoId = await api.upload(
         bytes: bytes,
-        fileName: fileName,
         contentType: contentType,
         onProgress: (sent, total) {
           state = PhotoUploadState(

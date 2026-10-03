@@ -65,16 +65,19 @@ class _AnalysisPageState extends ConsumerState<AnalysisPage> {
             ),
           );
         }
-        return _ProfileSummary(profile: profile);
+        return _ProfileSummary(profile: profile, photoId: widget.photoId);
       },
     );
   }
 }
 
 class _ProfileSummary extends StatelessWidget {
-  const _ProfileSummary({required this.profile});
+  const _ProfileSummary({required this.profile, required this.photoId});
 
   final AppearanceProfile profile;
+
+  /// 带进下一页，试戴任务要用它。
+  final String? photoId;
 
   @override
   Widget build(BuildContext context) {
@@ -99,7 +102,8 @@ class _ProfileSummary extends StatelessWidget {
         ),
         const SizedBox(height: 16),
         ElevatedButton(
-          onPressed: () => context.push('/hairstyle'),
+          // photoId 要一路带到试戴页 —— 整条链上它都是创建任务的必需参数。
+          onPressed: () => context.push('/hairstyle?photoId=$photoId'),
           child: const Text('选择发型'),
         ),
       ],

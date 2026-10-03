@@ -32,7 +32,8 @@ class _SimulationProgressPageState extends ConsumerState<SimulationProgressPage>
   }
 
   void _start() {
-    // TODO(Phase 1)：photo_id 来自上传流程，接入后替换。
+    // photoId 由路由 query 带进来（选图上传 → 分析 → 发型列表 → 这里）。
+    // 传空串服务端会以 VALIDATION_FAILED 拒绝，错误会呈现在下面的 ErrorView。
     ref.read(simulationProvider.notifier).run(
           photoId: widget.photoId ?? '',
           hairstyleId: widget.hairstyleId,
@@ -44,7 +45,7 @@ class _SimulationProgressPageState extends ConsumerState<SimulationProgressPage>
     ref.listen(simulationProvider, (_, next) {
       final sim = next.value;
       if (sim != null && sim.taskStatus == TaskStatus.success) {
-        context.push('/result/${sim.id}');
+        context.push('/result/${sim.simulationId}');
       }
     });
 

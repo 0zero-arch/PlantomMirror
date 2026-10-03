@@ -10,7 +10,10 @@ import '../providers/hairstyle_provider.dart';
 
 /// C005 发型选择。
 class HairstyleListPage extends ConsumerWidget {
-  const HairstyleListPage({super.key});
+  const HairstyleListPage({super.key, this.photoId});
+
+  /// 从分析页带过来，选中发型后要继续传给试戴页。
+  final String? photoId;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -28,10 +31,25 @@ class HairstyleListPage extends ConsumerWidget {
           itemCount: list.length,
           itemBuilder: (context, i) => _HairstyleCard(
             hairstyle: list[i],
-            onTap: () => context.push('/simulation/${list[i].id}'),
+            onTap: () => context.push(
+              '/simulation/${list[i].id}?photoId=${photoId ?? ''}',
+            ),
           ),
         ),
       ),
+    );
+  }
+}
+
+/// 没有参考图时的占位块。
+class _NoImage extends StatelessWidget {
+  const _NoImage();
+
+  @override
+  Widget build(BuildContext context) {
+    return const ColoredBox(
+      color: Color(0xFFEDEDF2),
+      child: Icon(Icons.person, color: Colors.black26),
     );
   }
 }
@@ -53,15 +71,17 @@ class _HairstyleCard extends StatelessWidget {
             SizedBox(
               width: 88,
               height: 88,
-              child: CachedNetworkImage(
-                imageUrl: hairstyle.referenceImage,
-                fit: BoxFit.cover,
-                placeholder: (_, _) => const ColoredBox(color: Color(0xFFEDEDF2)),
-                errorWidget: (_, _, _) => const ColoredBox(
-                  color: Color(0xFFEDEDF2),
-                  child: Icon(Icons.person, color: Colors.black26),
-                ),
-              ),
+              // 种子数据里 referenceImageUrl 基本是 null，所以先判空 ——
+              // CachedNetworkImage 的 imageUrl 不接受 null。
+              child: hairstyle.referenceImageUrl == null
+                  ? const _NoImage()
+                  : CachedNetworkImage(
+                      imageUrl: hairstyle.referenceImageUrl!,
+                      fit: BoxFit.cover,
+                      placeholder: (_, _) =>
+                          const ColoredBox(color: Color(0xFFEDEDF2)),
+                      errorWidget: (_, _, _) => const _NoImage(),
+                    ),
             ),
             const SizedBox(width: 12),
             Expanded(

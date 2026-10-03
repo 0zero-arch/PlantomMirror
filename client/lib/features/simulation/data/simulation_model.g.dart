@@ -7,18 +7,18 @@ part of 'simulation_model.dart';
 // **************************************************************************
 
 Simulation _$SimulationFromJson(Map<String, dynamic> json) => Simulation(
-  id: json['id'] as String,
-  photoId: json['photo_id'] as String,
-  hairstyleId: json['hairstyle_id'] as String,
+  simulationId: json['simulationId'] as String,
+  hairstyleId: json['hairstyleId'] as String,
   status: json['status'] as String,
-  outputImage: json['output_image'] as String?,
+  outputImageUrl: json['outputImageUrl'] as String?,
+  error: json['error'] as String?,
 );
 
 Map<String, dynamic> _$SimulationToJson(Simulation instance) =>
     <String, dynamic>{
-      'id': instance.id,
-      'photo_id': instance.photoId,
-      'hairstyle_id': instance.hairstyleId,
+      'simulationId': instance.simulationId,
+      'hairstyleId': instance.hairstyleId,
       'status': instance.status,
-      'output_image': instance.outputImage,
+      'outputImageUrl': instance.outputImageUrl,
+      'error': instance.error,
     };

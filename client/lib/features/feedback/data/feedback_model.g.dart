@@ -7,7 +7,7 @@ part of 'feedback_model.dart';
 // **************************************************************************
 
 AppFeedback _$AppFeedbackFromJson(Map<String, dynamic> json) => AppFeedback(
-  simulationId: json['simulation_id'] as String,
+  simulationId: json['simulationId'] as String,
   rating: (json['rating'] as num).toInt(),
   reason: json['reason'] as String?,
   comment: json['comment'] as String?,
@@ -15,7 +15,7 @@ AppFeedback _$AppFeedbackFromJson(Map<String, dynamic> json) => AppFeedback(
 
 Map<String, dynamic> _$AppFeedbackToJson(AppFeedback instance) =>
     <String, dynamic>{
-      'simulation_id': instance.simulationId,
+      'simulationId': instance.simulationId,
       'rating': instance.rating,
       'reason': instance.reason,
       'comment': instance.comment,
